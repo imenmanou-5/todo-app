@@ -1,0 +1,37 @@
+name: DevOps Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+      
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      - name: Tester Backend
+        run: |
+          cd backend
+          npm install
+          npm test
+      
+      - name: Tester Frontend
+        run: |
+          cd frontend
+          npm install
+          npm test
+      
+      - name: Construire images Docker
+        run: |
+          docker build -t backend-app:latest ./backend
+          docker build -t frontend-app:latest ./frontend
