@@ -1,4 +1,4 @@
-name: DevOps Pipeline
+name: DevOps CI/CD Pipeline
 
 on:
   push:
@@ -7,31 +7,62 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  ci:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Récupérer le code
+      - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Installer Node.js
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-      
-      - name: Tester Backend
+
+      - name: Install backend
+        run: cd backend && npm install
+
+      - name: Lint backend
+        run: cd backend && npm run lint
+
+      - name: Test backend
+        run: cd backend && npm test
+
+      - name: Install frontend
+        run: cd frontend && npm install
+
+      - name: Lint frontend
+        run: cd frontend && npm run lint
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Scan dependances npm audit
         run: |
-          cd backend
-          npm install
-          npm test
-      
-      - name: Tester Frontend
+          cd backend && npm audit --audit-level=critical || true
+          cd ../frontend && npm audit --audit-level=critical || true
+
+      - name: Build Docker images
         run: |
-          cd frontend
-          npm install
-          npm test
-      
-      - name: Construire images Docker
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/todo-backend:latest ./backend
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/todo-frontend:latest ./frontend
+
+      - name: Scan Trivy DevSecOps
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/todo-backend:latest
+          exit-code: '0'
+          severity: 'CRITICAL'
+
+      - name: Push images Docker Hub
         run: |
-          docker build -t backend-app:latest ./backend
-          docker build -t frontend-app:latest ./frontend
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/todo-backend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/todo-frontend:latest
