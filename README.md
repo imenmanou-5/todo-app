@@ -30,3 +30,4 @@ ArgoCD surveille le repo et déploie automatiquement sur Kubernetes.
 - Prometheus : http://localhost:9090
 - Grafana : http://localhost:3001
 - Métriques backend : http://localhost:5000/metrics
+# trigger
